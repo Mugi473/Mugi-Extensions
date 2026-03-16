@@ -23,18 +23,18 @@ jobs:
       - name: Build Repo
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleRelease
+          ./gradlew assembleDebug
           
       - name: Deploy to Repo Branch
         run: |
           git config --global user.email "mugi@manga.com"
           git config --global user.name "Mugi473"
           mkdir -p repo
-          cp app/build/outputs/apk/release/*.apk repo/
+          cp app/build/outputs/apk/debug/*.apk repo/
           cd repo
-          # Ici le robot crée le fameux index pour Tachimanga
+          # Le robot crée l'index indispensable pour Tachimanga
           echo "{\"name\":\"Mugi-Extensions\",\"author\":\"Mugi473\",\"extensions\":[]}" > index.min.json 
-          git checkout -b repo
+          git checkout -b repo || git checkout repo
           git add .
           git commit -m "Update repo"
           git push -f origin repo
