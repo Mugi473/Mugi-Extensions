@@ -1,0 +1,40 @@
+name: Remote Repo CI
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  make_repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build Repo
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleRelease
+          
+      - name: Deploy to Repo Branch
+        run: |
+          git config --global user.email "mugi@manga.com"
+          git config --global user.name "Mugi473"
+          mkdir -p repo
+          cp app/build/outputs/apk/release/*.apk repo/
+          cd repo
+          # Ici le robot crée le fameux index pour Tachimanga
+          echo "{\"name\":\"Mugi-Extensions\",\"author\":\"Mugi473\",\"extensions\":[]}" > index.min.json 
+          git checkout -b repo
+          git add .
+          git commit -m "Update repo"
+          git push -f origin repo
