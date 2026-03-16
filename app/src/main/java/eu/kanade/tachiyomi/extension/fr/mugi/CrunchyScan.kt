@@ -2,9 +2,14 @@ package eu.kanade.tachiyomi.extension.fr.mugi
 
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
+import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
+import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
+import eu.kanade.tachiyomi.network.GET
+import okhttp3.Request
 
 class CrunchyScan : ParsedHttpSource() {
 
@@ -13,13 +18,10 @@ class CrunchyScan : ParsedHttpSource() {
     override val lang = "fr"
     override val supportsLatest = true
 
-    // 1. Comment trouver la liste des mangas (Page Populaire)
+    // --- POPULAR / LATEST ---
     override fun popularMangaSelector() = ".manga-list__card"
-
-    // 2. Comment passer à la page suivante
     override fun popularMangaNextPageSelector() = "a.next"
 
-    // 3. Comment extraire les infos d'un manga dans la liste
     override fun popularMangaFromElement(element: Element): SManga {
         val manga = SManga.create()
         manga.title = element.select(".manga-list__card-title").text()
@@ -28,22 +30,43 @@ class CrunchyScan : ParsedHttpSource() {
         return manga
     }
 
-    // --- Les fonctions ci-dessous sont obligatoires mais on les remplira plus tard ---
-
     override fun latestUpdatesSelector() = popularMangaSelector()
     override fun latestUpdatesNextPageSelector() = popularMangaNextPageSelector()
     override fun latestUpdatesFromElement(element: Element) = popularMangaFromElement(element)
 
+    // --- SEARCH ---
+    override fun searchMangaSelector() = popularMangaSelector()
+    override fun searchMangaNextPageSelector() = popularMangaNextPageSelector()
+    override fun searchMangaFromElement(element: Element) = popularMangaFromElement(element)
+    override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request {
+        return GET("$baseUrl/search?query=$query&page=$page")
+    }
+
+    // --- DETAILS ---
     override fun mangaDetailsParse(document: Document): SManga {
         val manga = SManga.create()
         manga.description = document.select(".manga-summary").text()
+        manga.author = document.select(".manga-info__author").text()
+        manga.genre = document.select(".manga-info__genres a").joinToString { it.text() }
         return manga
     }
 
-    override fun chapterListSelector() = ".chapitre-lien" // Ce qu'on a vu ensemble !
-    override fun chapterFromElement(element: Element) = throw Exception("Pas encore codé")
-    override fun pageListParse(document: Document) = throw Exception("Pas encore codé")
-    override fun searchMangaSelector() = throw Exception("Pas encore codé")
-    override fun searchMangaFromElement(element: Element) = throw Exception("Pas encore codé")
-    override fun searchMangaNextPageSelector() = throw Exception("Pas encore codé")
+    // --- CHAPTERS ---
+    override fun chapterListSelector() = ".manga-chapters__item a"
+
+    override fun chapterFromElement(element: Element): SChapter {
+        val chapter = SChapter.create()
+        chapter.setUrlWithoutDomain(element.attr("href"))
+        chapter.name = element.text()
+        return chapter
+    }
+
+    // --- PAGES ---
+    override fun pageListParse(document: Document): List<Page> {
+        return document.select("div.read-content img, .vung-doc img").mapIndexed { i, element ->
+            Page(i, "", element.attr("absUrl:src"))
+        }
+    }
+
+    override fun imageUrlParse(document: Document) = ""
 }
